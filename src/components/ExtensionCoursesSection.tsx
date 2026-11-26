@@ -247,11 +247,16 @@ export function ExtensionCoursesSection() {
                   <p className="text-xs text-slate-500 tabular-nums">
                     <span className="font-semibold text-[#2B5B84]">
                       {course.year}
-                    </span>{' '}
-                    <span aria-hidden="true">·</span>{' '}
-                    <span className="font-medium text-slate-700">
-                      {course.provider}
                     </span>
+                    {course.provider ? (
+                      <>
+                        {' '}
+                        <span aria-hidden="true">·</span>{' '}
+                        <span className="font-medium text-slate-700">
+                          {course.provider}
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                   <h4 className="mt-2 font-display text-sm sm:text-base font-bold text-[#0B1F3A] leading-snug">
                     {course.title}

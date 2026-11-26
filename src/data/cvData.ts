@@ -406,7 +406,7 @@ export const EXTENSION_COURSES: ExtensionCourse[] = [
 
 export interface OtherCourse {
   id: string;
-  provider: string;
+  provider?: string;
   title: string;
   dates: string;
   year: string;
@@ -418,6 +418,12 @@ export const OTHER_COURSES: OtherCourse[] = [
     provider: 'ADECCO - SEIM',
     title: 'CURSO DE ALFABETIZACIÓN DIGITAL',
     dates: '20/10/2026 al 26/11/2026',
+    year: '2026',
+  },
+  {
+    id: 'digitalizacion-organizaciones-2026',
+    title: 'Digitalización de organizaciones 2026',
+    dates: 'Octubre - Diciembre',
     year: '2026',
   },
 ];
