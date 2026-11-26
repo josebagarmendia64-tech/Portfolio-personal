@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 const NAV_LINKS = [
   { href: '#inicio', label: 'Inicio' },
@@ -42,12 +43,15 @@ export function Header() {
       />
 
       <div className="mx-auto flex h-14 md:h-16 max-w-6xl items-center justify-between gap-4 md:gap-8 px-4 sm:px-6 lg:px-8">
-        {/* Zone 1: Single-line Brand Wordmark */}
+        {/* Zone 1: Single-line Brand Wordmark + Corporate JG Symbol */}
         <a
           href="#inicio"
-          className="font-display text-base sm:text-lg font-bold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2B5B84]"
+          className="inline-flex items-center gap-2.5 font-display text-base sm:text-lg font-bold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2B5B84]"
         >
-          Joseba <span className="font-medium italic text-[#2B5B84]">Garmendia</span>
+          <BrandMark className="h-8 w-8 sm:h-9 sm:w-9" />
+          <span>
+            Joseba <span className="font-medium italic text-[#2B5B84]">Garmendia</span>
+          </span>
         </a>
 
         {/* Zone 2: Clean single-line navigation links */}
