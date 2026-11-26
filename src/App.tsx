@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ScrollSmoother } from 'gsap/ScrollSmoother';
+import { InertiaPlugin } from 'gsap/InertiaPlugin';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { ProfileSection } from './components/ProfileSection';
@@ -10,7 +12,7 @@ import { ExtensionCoursesSection } from './components/ExtensionCoursesSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, ScrollSmoother, InertiaPlugin);
 
 export default function App() {
   const mainRef = useRef<HTMLDivElement>(null);
@@ -20,17 +22,53 @@ export default function App() {
       '(prefers-reduced-motion: reduce)',
     ).matches;
 
+    const handleAnchorClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest('a[href^="#"]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const hash = anchor.getAttribute('href');
+      if (!hash || hash === '#') return;
+
+      const destination = document.querySelector(hash);
+      if (!destination) return;
+
+      event.preventDefault();
+      const smoother = ScrollSmoother.get();
+      if (smoother && !prefersReducedMotion) {
+        smoother.scrollTo(destination, true, 'top 64px');
+      } else {
+        destination.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'start',
+        });
+      }
+    };
+
+    document.addEventListener('click', handleAnchorClick);
+
     if (prefersReducedMotion) {
-      return;
+      return () => {
+        document.removeEventListener('click', handleAnchorClick);
+      };
     }
 
     const ctx = gsap.context(() => {
-      // 1. Scroll progress bar synced to document scroll
+      // 0. GSAP ScrollSmoother with inertia
+      ScrollSmoother.create({
+        wrapper: '#smooth-wrapper',
+        content: '#smooth-content',
+        smooth: 1.4,
+        smoothTouch: 0.25,
+        effects: true,
+      });
+
+      // 1. Scroll progress bar synced to smooth content scroll
       gsap.to('#scroll-progress-bar', {
         scaleX: 1,
         ease: 'none',
         scrollTrigger: {
-          trigger: document.documentElement,
+          trigger: '#smooth-content',
           start: 'top top',
           end: 'bottom bottom',
           scrub: 0.25,
@@ -137,7 +175,10 @@ export default function App() {
       });
     }, mainRef);
 
-    return () => ctx.revert();
+    return () => {
+      document.removeEventListener('click', handleAnchorClick);
+      ctx.revert();
+    };
   }, []);
 
   return (
@@ -151,16 +192,20 @@ export default function App() {
 
       <Header />
 
-      <main id="contenido-principal" className="flex-1">
-        <HeroSection />
-        <ProfileSection />
-        <ExperienceSection />
-        <EducationSection />
-        <ExtensionCoursesSection />
-        <ContactSection />
-      </main>
+      <div id="smooth-wrapper" className="flex-1">
+        <div id="smooth-content" className="pt-14 md:pt-16">
+          <main id="contenido-principal">
+            <HeroSection />
+            <ProfileSection />
+            <ExperienceSection />
+            <EducationSection />
+            <ExtensionCoursesSection />
+            <ContactSection />
+          </main>
 
-      <Footer />
+          <Footer />
+        </div>
+      </div>
     </div>
   );
 }
