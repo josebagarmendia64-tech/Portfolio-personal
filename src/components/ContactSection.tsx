@@ -38,6 +38,66 @@ function buildClientCaptcha(): CaptchaState {
   const width = 200;
   const height = 64;
   const colors = ['#0B1F3A', '#1E293B', '#2B5B84', '#13315C'];
+
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      ctx.fillStyle = '#F1F5F9';
+      ctx.fillRect(0, 0, width, height);
+
+      // Subtle interference curves
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 4; i++) {
+        const y1 = 10 + ((randomBytes[i % 5] * 13 + i * 17) % 44);
+        const y2 = 10 + ((randomBytes[(i + 1) % 5] * 19 + i * 11) % 44);
+        const cy = 6 + ((randomBytes[(i + 2) % 5] * 23) % 52);
+        ctx.beginPath();
+        ctx.moveTo(8, y1);
+        ctx.quadraticCurveTo(width / 2, cy, width - 8, y2);
+        ctx.stroke();
+      }
+
+      // Subtle noise dots
+      ctx.fillStyle = 'rgba(100, 116, 139, 0.35)';
+      for (let i = 0; i < 20; i++) {
+        const dx = (randomBytes[i % 5] * 37 + i * 29) % (width - 12) + 6;
+        const dy = (randomBytes[(i + 2) % 5] * 23 + i * 19) % (height - 12) + 6;
+        ctx.beginPath();
+        ctx.arc(dx, dy, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Characters with individual rotation & color
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.font = '700 28px system-ui, -apple-system, sans-serif';
+      chars.forEach((ch, i) => {
+        const x = 30 + i * 35;
+        const y = 33 + ((randomBytes[i] % 7) - 3);
+        const angle = (((randomBytes[i] % 25) - 12) * Math.PI) / 180;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+      });
+
+      return {
+        mode: 'client',
+        token: 'client-local',
+        imageData: canvas.toDataURL('image/png'),
+        expectedCode: code,
+      };
+    }
+  }
+
+  // ASCII-only UTF-8 SVG fallback
   const charElements = chars
     .map((ch, i) => {
       const x = 24 + i * 34;
@@ -47,8 +107,8 @@ function buildClientCaptcha(): CaptchaState {
     })
     .join('');
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Código de verificación CAPTCHA"><rect width="100%" height="100%" rx="8" fill="#F1F5F9" /><path d="M 10 22 Q 100 48 190 18" stroke="#94A3B8" stroke-width="1.4" fill="none" opacity="0.65" /><path d="M 16 46 Q 105 14 186 44" stroke="#94A3B8" stroke-width="1.4" fill="none" opacity="0.65" />${charElements}</svg>`;
-  const imageData = `data:image/svg+xml;base64,${btoa(svg)}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="CAPTCHA"><rect width="100%" height="100%" rx="8" fill="#F1F5F9" /><path d="M 10 22 Q 100 48 190 18" stroke="#94A3B8" stroke-width="1.4" fill="none" opacity="0.65" /><path d="M 16 46 Q 105 14 186 44" stroke="#94A3B8" stroke-width="1.4" fill="none" opacity="0.65" />${charElements}</svg>`;
+  const imageData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
   return {
     mode: 'client',
