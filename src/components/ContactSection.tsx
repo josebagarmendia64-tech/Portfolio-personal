@@ -204,8 +204,12 @@ export function ContactSection() {
       (directData.success === true || directData.success === 'true');
 
     if (!ok) {
+      const rawMsg = directData.message || '';
+      if (/activation/i.test(rawMsg) || /activate form/i.test(rawMsg)) {
+        return `Revisa tu bandeja de entrada (${PERSONAL_INFO.email}): FormSubmit te ha enviado un enlace de activación ("Activate Form"). Haz clic en él una única vez para empezar a recibir los mensajes.`;
+      }
       throw new Error(
-        directData.message ||
+        rawMsg ||
           `No se pudo enviar el mensaje. Utiliza el botón de respaldo para escribir a ${PERSONAL_INFO.email}.`,
       );
     }
@@ -267,22 +271,65 @@ export function ContactSection() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: cleanName,
-          email: cleanEmail,
-          subject: cleanSubject,
-          message: cleanMessage,
-          website,
-          captchaToken: captcha.token,
-          captchaAnswer,
-        }),
-      });
+      let shouldFallbackToClient = false;
+      let serverError: string | undefined;
 
-      // Fallback to direct FormSubmit request if /api/contact is unavailable (404 on static hosting)
-      if (res.status === 404) {
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: cleanName,
+            email: cleanEmail,
+            subject: cleanSubject,
+            message: cleanMessage,
+            website,
+            captchaToken: captcha.token,
+            captchaAnswer,
+          }),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+          message?: string;
+          allowClientFallback?: boolean;
+        };
+
+        if (
+          res.status === 404 ||
+          res.status >= 500 ||
+          data.allowClientFallback
+        ) {
+          shouldFallbackToClient = true;
+        } else if (!res.ok || !data.success) {
+          serverError =
+            data.error ||
+            'No se ha podido enviar el mensaje. Revisa los datos e inténtalo de nuevo.';
+        } else {
+          setSuccessMsg(
+            data.message ||
+              `Tu mensaje se ha enviado correctamente a ${PERSONAL_INFO.email}.`,
+          );
+          setName('');
+          setEmail('');
+          setSubject('');
+          setMessage('');
+          setCaptchaAnswer('');
+          await fetchCaptcha();
+          return;
+        }
+      } catch {
+        shouldFallbackToClient = true;
+      }
+
+      if (serverError) {
+        setErrorMsg(serverError);
+        await fetchCaptcha();
+        return;
+      }
+
+      if (shouldFallbackToClient) {
         const confirmation = await sendDirectViaFormSubmit({
           name: cleanName,
           email: cleanEmail,
@@ -296,34 +343,7 @@ export function ContactSection() {
         setMessage('');
         setCaptchaAnswer('');
         await fetchCaptcha();
-        return;
       }
-
-      const data = (await res.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-        message?: string;
-      };
-
-      if (!res.ok || !data.success) {
-        setErrorMsg(
-          data.error ||
-            'No se ha podido enviar el mensaje. Revisa los datos e inténtalo de nuevo.',
-        );
-        await fetchCaptcha();
-        return;
-      }
-
-      setSuccessMsg(
-        data.message ||
-          `Tu mensaje se ha enviado correctamente a ${PERSONAL_INFO.email}.`,
-      );
-      setName('');
-      setEmail('');
-      setSubject('');
-      setMessage('');
-      setCaptchaAnswer('');
-      await fetchCaptcha();
     } catch (err) {
       setErrorMsg(
         err instanceof Error

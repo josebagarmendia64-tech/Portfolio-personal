@@ -328,7 +328,10 @@ async function createApp() {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          Origin: refererOrigin,
           Referer: refererOrigin,
+          'User-Agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         },
         body: JSON.stringify({
           name,
@@ -342,19 +345,43 @@ async function createApp() {
         }),
       });
 
-      const upstreamData = (await upstreamRes.json().catch(() => ({}))) as {
+      const rawText = await upstreamRes.text();
+      let upstreamData: {
         success?: boolean | string;
         message?: string;
-      };
+      } = {};
+      try {
+        upstreamData = JSON.parse(rawText) as {
+          success?: boolean | string;
+          message?: string;
+        };
+      } catch {
+        upstreamData = {};
+      }
 
       const isSuccess =
         upstreamRes.ok &&
         (upstreamData.success === true || upstreamData.success === 'true');
 
       if (!isSuccess) {
+        const rawMsg = upstreamData.message || '';
+        const needsActivation =
+          /activation/i.test(rawMsg) || /activate form/i.test(rawMsg);
+
+        if (needsActivation) {
+          res.json({
+            success: true,
+            deliveryMode: 'formsubmit-activation',
+            recipient: recipientEmail,
+            message: `Revisa tu bandeja de entrada (${recipientEmail}): FormSubmit te ha enviado un enlace de activación ("Activate Form"). Haz clic en él una única vez para empezar a recibir los mensajes.`,
+          });
+          return;
+        }
+
         res.status(502).json({
+          allowClientFallback: true,
           error:
-            upstreamData.message ||
+            rawMsg ||
             `No se pudo enviar el correo a través de FormSubmit. Puedes escribir directamente a ${recipientEmail}.`,
         });
         return;
@@ -369,6 +396,7 @@ async function createApp() {
     } catch (err) {
       console.error('Error forwarding to FormSubmit:', err);
       res.status(502).json({
+        allowClientFallback: true,
         error: `No se pudo completar el envío en este momento. Puedes escribir directamente a ${recipientEmail}.`,
       });
     }
